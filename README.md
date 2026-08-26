@@ -2,7 +2,7 @@
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 用的长期记忆插件。
 
-它会为你的 `MEMORY.md` 索引文件加上硬性上限（默认 200 行 / 25 KB），拒绝会让索引继续变大的写入，同时把 [checkpoint-memory](https://github.com/your-org/checkpoint-memory) 协议注入 dsh，并在 Web 作曲家显示一个「同步记忆」按钮。
+它会为你的 `MEMORY.md` 索引文件加上硬性上限（默认 200 行 / 25 KB），拒绝会让索引继续变大的写入，同时把 [checkpoint-memory](https://github.com/your-org/checkpoint-memory) 协议注入 dsh，并在 Web 页面显示一个「同步记忆」按钮。
 
 > 本插件基于上游仓库 [tinqiao-oss/engramory](https://github.com/tinqiao-oss/engramory) 的 `adapters/dsh/plugin` 目录修改、重命名而来。完整修改清单见 [UPSTREAM.md](UPSTREAM.md)。
 
@@ -11,7 +11,7 @@
 - **硬性上限守护**：超过 `maxLines` / `maxBytes` 的**增长型**写入会被拒绝；缩小的写入始终放行，方便压缩整理。
 - **完整 skill 安装**：激活时把 `skill/` 里的协议文件安装到 `$DSH_HOME/skills/checkpoint-memory/`，幂等、不删除用户自己的文件。
 - **规则自动注入**：把规则片段追加到 `$DSH_HOME/AGENTS.md`，每次启动自动生效。
-- **Web 同步按钮**：在 Web 作曲家输入框工具行增加「同步记忆」按钮，一键执行 `/checkpoint-memory`。
+- **Web 同步按钮**：在 Web 页面输入框工具行增加「同步记忆」按钮，一键执行 `/checkpoint-memory`。
 
 ## 安装
 
@@ -57,8 +57,9 @@ dsh plugin --profile web add link:/path/to/dsh-checkpoint-memory
 ## 使用
 
 1. 准备一个 checkpoint-memory 记忆库（参考 `skill/AGENT-SETUP.md`）。
-2. 在 dsh 会话中输入 `/checkpoint-memory`，模型会执行召回 + 策展写入。
-3. 在 Web 作曲家中点击「同步记忆」按钮，效果相同。
+2. 安装插件后启动或重启 `dsh web`。
+3. 在 Web 页面输入框的工具行点击「同步记忆」按钮，模型会执行召回 + 策展写入。
+4. 插件会实时守护 `MEMORY.md` 的上限；如果某次写入会让索引变大并超过上限，则会被拒绝并提示压缩。
 
 > 插件本身不创建记忆库，只负责上限守护与协议注入。
 
