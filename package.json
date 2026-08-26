@@ -1,0 +1,54 @@
+{
+  "name": "dsh-checkpoint-memory",
+  "version": "0.1.0",
+  "description": "Curated file-based long-term memory for DeepSeek Harness — human-readable markdown notes, one plain-file store shared across hosts (git-ignored when it lives inside a project repo), and a deterministic index cap enforced by ctx.tools.guard()",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "dsh",
+    "memory",
+    "agent-memory",
+    "long-term-memory",
+    "markdown"
+  ],
+  "type": "module",
+  "main": "index.js",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": []
+    }
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "install-skill.js",
+    "client.js",
+    "skill/",
+    "cordis.patch.yml",
+    "UPSTREAM.md",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": ">=0.0.1-rc.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-tools": {
+      "optional": false
+    }
+  }
+}
