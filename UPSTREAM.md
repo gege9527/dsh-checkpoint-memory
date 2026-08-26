@@ -69,9 +69,9 @@
 
 - 重写 `README.md`（删除独立的英文文档 `README.zh-CN.md`，中文内容直接作为主 README）：
   - 删除 Engramory 徽章、dsh-xray 卡片、版本 issue 说明；
-  - 增加「上游来源与主要修改」章节，说明基于 `tinqiao-oss/engramory` 的改动；
-  - 保留「插件除了守卫还带了什么」章节，说明 skill 安装、`AGENTS.md` 追加、Web 按钮；
-  - 更新安装命令与配置表。
+  - 改写成面向用户/开发者的项目说明，突出功能、安装、配置、使用；
+  - 把 AI 协议细节（守卫决策表等）交给 `skill/SKILL.md`，README 中只保留功能概述；
+  - 增加「上游来源与主要修改」章节，链接到 `UPSTREAM.md`。
 - 新增 `install-skill.test.js` 与 `client.test.js`。
 - 原 `test.js` 的用例更新为新的插件名与配置默认值，决策表覆盖保持不变。
 
