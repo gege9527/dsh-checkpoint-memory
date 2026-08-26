@@ -16,7 +16,7 @@
 ## 安装
 
 ```sh
-dsh plugin --profile <名字> add dsh-checkpoint-memory
+dsh plugin --profile web add dsh-checkpoint-memory
 ```
 
 开发时可以用本地目录：
