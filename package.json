@@ -39,6 +39,14 @@
     "LICENSE"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gege9527/dsh-checkpoint-memory.git"
+  },
+  "homepage": "https://github.com/gege9527/dsh-checkpoint-memory#readme",
+  "bugs": {
+    "url": "https://github.com/gege9527/dsh-checkpoint-memory/issues"
+  },
   "engines": {
     "node": ">=18"
   },
