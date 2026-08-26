@@ -1,8 +1,8 @@
 // Browser half of the dsh-checkpoint-memory plugin. Mounts ONE button into the web
 // GUI, zero-build lazy-CJS (window.__ModuleLoader__.load), mirroring modlens/dshmarket.
 //
-// "同步记忆" — composer tool row (`conversation.input.right`). On click it submits the
-// `/checkpoint-memory` skill command to the CURRENT session via `session.prompt`. The
+// Icon-only sync-memory button in the composer tool row (`conversation.input.right`).
+// On click it submits the `/checkpoint-memory` skill command to the CURRENT session via `session.prompt`. The
 // host treats a single text block starting with '/' as a slash command, so the skill
 // routes to the model, which runs the full §0 protocol in the MAIN conversation:
 //   §0.1 recall (reads MEMORY.md → "恢复记忆") and
@@ -74,6 +74,23 @@ window.__ModuleLoader__.load({
       var useEffect = react.useEffect
       var useRef = react.useRef
 
+      // Render a small SVG sync icon for the idle state; use simple glyphs for
+      // transient feedback so the button stays a single 26x26 element.
+      function renderIcon(busy, feedback) {
+        if (busy) return '\u23F3' // ⏳
+        if (feedback === 'sent') return '\u2713' // ✓
+        if (feedback === 'unavailable') return '\u0021' // !
+        if (feedback === 'error') return '\u00D7' // ×
+        return h('svg', {
+          width: '14',
+          height: '14',
+          viewBox: '0 0 24 24',
+          fill: 'currentColor',
+          style: { display: 'block' },
+          'aria-hidden': 'true',
+        }, h('path', { d: 'M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z' }))
+      }
+
       return function ChipButton(props) {
         var sessionId = props.sessionId
         var ctx = props.ctx
@@ -120,7 +137,7 @@ window.__ModuleLoader__.load({
               setBusy(false)
               setFeedback('error')
               // eslint-disable-next-line no-console
-              console.error('[checkpoint-memory] ' + opts.label + ' failed:', error)
+              console.error('[checkpoint-memory] ' + opts.name + ' failed:', error)
             })
         }
 
@@ -140,6 +157,7 @@ window.__ModuleLoader__.load({
           {
             type: 'button',
             title: opts.title,
+            'aria-label': opts.title,
             onClick: onClick,
             disabled: busy,
             onMouseEnter: function () { setHovered(true) },
@@ -148,37 +166,32 @@ window.__ModuleLoader__.load({
             onMouseUp: function () { setPressed(false) },
             style: chipStyle(busy, fill),
           },
-          h('span', null, busy ? opts.busyLabel : opts.label),
-          feedback === 'sent' ? h('span', { style: statusSpanStyle }, '✓') : null,
-          feedback === 'unavailable' ? h('span', { style: statusSpanStyle }, '!') : null,
-          feedback === 'error' ? h('span', { style: statusSpanStyle }, '×') : null,
+          h('span', { style: iconStyle }, renderIcon(busy, feedback)),
         )
       }
     }
 
-    // Compact composer tool-row chip: outlined pill, transparent fill, 1px border.
+    // Minimal icon-only composer tool-row button: 26x26 circle, no text.
     function chipStyle(busy, fill) {
       return {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        minWidth: '72px',
-        height: '28px',
-        padding: '4px 10px',
-        gap: '4px',
-        border: '1px solid var(--dsw-alias-border-l2, #d9d9d9)',
-        borderRadius: '18px',
+        width: '26px',
+        height: '26px',
+        padding: '0',
+        border: 'none',
+        borderRadius: '50%',
         color: busy ? 'var(--dsw-alias-label-dimmed, #8f959e)' : 'var(--dsw-alias-label-primary, #1f2329)',
         background: fill,
         fontFamily: 'var(--dsw-font-family, inherit)',
-        fontSize: '13px',
-        fontWeight: '400',
-        lineHeight: '20px',
+        fontSize: '14px',
+        lineHeight: '1',
         cursor: busy ? 'wait' : 'pointer',
-        whiteSpace: 'nowrap',
+        userSelect: 'none',
       }
     }
-    var statusSpanStyle = { flex: 'none', marginLeft: '2px', fontSize: '12px' }
+    var iconStyle = { display: 'inline-flex' }
 
     function apply(ctx) {
       var react
@@ -191,8 +204,7 @@ window.__ModuleLoader__.load({
       }
 
       var Chip = makeChipButton(react, {
-        label: '同步记忆',
-        busyLabel: '同步中…',
+        name: '同步记忆',
         title: '在主会话中执行 /checkpoint-memory（恢复 + 保存记忆）',
         makeRunner: resolvePromptRunner,
       })
