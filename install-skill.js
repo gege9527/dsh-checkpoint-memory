@@ -23,8 +23,9 @@
  *    different version of it (in which case the bundled skill wins).
  *  - Missing or unreadable destination roots are created; an unwritable root
  *    returns an error instead of throwing out of apply().
- *  - The AGENTS.md append never deletes or replaces existing rules; it only appends
- *    the snippet when it is not already there.
+ *  - The AGENTS.md rules block is appended once when missing, and refreshed in place
+ *    whenever the payload version changes (so upgraded rules actually reach every
+ *    session). It never touches content outside its start/end markers.
  *
  * Zero dependencies, plain ESM, node: builtins only — same ethos as index.js.
  */
@@ -71,10 +72,11 @@ function outcome(status, dest, detail = '') {
  *   - { status: 'installed', dest, agents }  — payload written (fresh or updated).
  *   - { status: 'skipped', dest, detail } — no payload found to install from.
  *   - { status: 'error', dest, detail, agents? }   — root unwritable / copy failed.
- * The `agents` field separately reports the AGENTS.md append:
- *   - { status: 'appended', path }
- *   - { status: 'present', path }
- *   - { status: 'error', path, detail }
+ * The `agents` field separately reports the AGENTS.md sync:
+ *   - { status: 'appended', path }            — block was added (none existed).
+ *   - { status: 'refreshed', path }           — existing block was rewritten from the payload.
+ *   - { status: 'present', path }             — block already matches the payload, nothing written.
+ *   - { status: 'error', path, detail }       — marker mismatch / write failed.
  *   - { status: 'skipped', path, detail } (e.g. no rules-snippet in payload).
  */
 export async function installSkill(opts = {}) {
@@ -134,16 +136,26 @@ export async function installSkill(opts = {}) {
 
   const agentsResult = opts.appendRules === false
     ? { status: 'skipped', path: resolve(join(dshHome, AGENTS_FILENAME)), detail: 'appendRules is false' }
-    : await appendRulesToAgents(dshHome, payloadDir)
+    : await appendRulesToAgents(dshHome, payloadDir, { refresh: true })
   return { ...outcome('installed', dest), agents: agentsResult }
 }
 
 /**
- * Append `rules-snippet.md` from the payload to `$DSH_HOME/AGENTS.md` wrapped between
- * `AGENTS_MARKER_START` and `AGENTS_MARKER_END`. If the start marker is already present,
- * the block is treated as already installed and nothing is added.
+ * Sync `rules-snippet.md` from the payload into `$DSH_HOME/AGENTS.md`, wrapped between
+ * `AGENTS_MARKER_START` and `AGENTS_MARKER_END`.
+ *
+ *  - No start marker yet: the block is appended after the existing content.
+ *  - Start marker present, `refresh` falsy: treated as already installed, nothing written.
+ *  - Start marker present, `refresh: true`: the enclosed block is rewritten in place from
+ *    the payload. A skill upgrade therefore actually updates the always-on rules instead
+ *    of leaving a stale copy behind. Everything outside the two markers — including
+ *    content the user added before or after the block — is preserved verbatim.
+ *
+ * A start marker with no matching end marker is refused rather than guessed at: rewriting
+ * there could swallow unrelated rules, so the caller gets an `error` outcome to report.
  */
-export async function appendRulesToAgents(dshHome, payloadDir) {
+export async function appendRulesToAgents(dshHome, payloadDir, opts = {}) {
+  const refresh = opts.refresh === true
   const agentsPath = resolve(join(dshHome, AGENTS_FILENAME))
   const snippetPath = resolve(join(payloadDir, RULES_SNIPPET))
 
@@ -152,6 +164,11 @@ export async function appendRulesToAgents(dshHome, payloadDir) {
     snippet = await readFile(snippetPath, 'utf8')
   } catch (error) {
     return { status: 'skipped', path: agentsPath, detail: `no ${RULES_SNIPPET} in payload: ${errorMessage(error)}` }
+  }
+
+  const snippetBody = snippet.trim()
+  if (snippetBody === '') {
+    return { status: 'skipped', path: agentsPath, detail: `${RULES_SNIPPET} is empty` }
   }
 
   let current = ''
@@ -163,20 +180,38 @@ export async function appendRulesToAgents(dshHome, payloadDir) {
     current = ''
   }
 
-  if (current.includes(AGENTS_MARKER_START)) {
-    return { status: 'present', path: agentsPath }
-  }
+  // The block as it should read, without the leading separator newline the append path adds.
+  const block = `${AGENTS_MARKER_START}\n\n${snippet.trimEnd()}\n\n${AGENTS_MARKER_END}`
 
-  const snippetBody = snippet.trim()
-  if (snippetBody === '') {
-    return { status: 'skipped', path: agentsPath, detail: `${RULES_SNIPPET} is empty` }
+  const startAt = current.indexOf(AGENTS_MARKER_START)
+  if (startAt !== -1) {
+    if (!refresh) {
+      return { status: 'present', path: agentsPath }
+    }
+    const endAt = current.indexOf(AGENTS_MARKER_END, startAt + AGENTS_MARKER_START.length)
+    if (endAt === -1) {
+      return {
+        status: 'error',
+        path: agentsPath,
+        detail: `${AGENTS_MARKER_START} present without ${AGENTS_MARKER_END}; refusing to rewrite`,
+      }
+    }
+    const endOfBlock = endAt + AGENTS_MARKER_END.length
+    if (current.slice(startAt, endOfBlock) === block) {
+      return { status: 'present', path: agentsPath }
+    }
+    const next = current.slice(0, startAt) + block + current.slice(endOfBlock)
+    try {
+      await writeFile(agentsPath, next, 'utf8')
+    } catch (error) {
+      return { status: 'error', path: agentsPath, detail: errorMessage(error) }
+    }
+    return { status: 'refreshed', path: agentsPath }
   }
 
   const prefix = currentExists && !current.endsWith('\n') ? '\n\n' : currentExists ? '\n' : ''
-  const block = `${prefix}${AGENTS_MARKER_START}\n\n${snippet.trimEnd()}\n\n${AGENTS_MARKER_END}\n`
-
   try {
-    await writeFile(agentsPath, current + block, 'utf8')
+    await writeFile(agentsPath, `${current}${prefix}${block}\n`, 'utf8')
   } catch (error) {
     return { status: 'error', path: agentsPath, detail: errorMessage(error) }
   }

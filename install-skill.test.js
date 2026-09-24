@@ -162,3 +162,72 @@ test('appendRulesToAgents appends to existing AGENTS.md without duplicating', as
   const second = await appendRulesToAgents(home, PAYLOAD)
   assert.equal(second.status, 'present')
 })
+
+test('a skill upgrade refreshes the AGENTS.md rules block in place', async () => {
+  const home = tempHome()
+  // Seed a stale block, as an older plugin version would have left behind.
+  writeFileSync(agentsPath(home), [
+    '# My rules',
+    '',
+    'Keep me.',
+    '',
+    AGENTS_MARKER_START,
+    '',
+    '# 记忆（checkpoint-memory）',
+    '',
+    'STALE RULES FROM AN OLD VERSION',
+    '',
+    AGENTS_MARKER_END,
+    '',
+    'Trailing user content.',
+    '',
+  ].join('\n'), 'utf8')
+
+  // Simulate an upgrade: new payload version + a different rules snippet.
+  const edited = mkdtempSync(join(tmpdir(), 'cm-upgraded-payload-'))
+  writeFileSync(join(edited, 'SKILL.md'), '# upgraded\n')
+  writeFileSync(join(edited, VERSION_FILENAME), 'deadbeef')
+  writeFileSync(join(edited, 'rules-snippet.md'), '# 记忆（checkpoint-memory）\n\nFRESH RULES\n', 'utf8')
+
+  const r = await installSkill({ dshHome: home, payloadDir: edited })
+  assert.equal(r.status, 'installed')
+  assert.equal(r.agents.status, 'refreshed', 'an upgrade must rewrite the rules block')
+
+  const agents = readFileSync(agentsPath(home), 'utf8')
+  assert.match(agents, /FRESH RULES/, 'new rules must land in AGENTS.md')
+  assert.doesNotMatch(agents, /STALE RULES/, 'stale rules must be replaced')
+  // Content outside the markers is untouched, and the block is not duplicated.
+  assert.match(agents, /# My rules/)
+  assert.match(agents, /Keep me\./)
+  assert.match(agents, /Trailing user content\./)
+  assert.equal(agents.split(AGENTS_MARKER_START).length - 1, 1)
+  assert.equal(agents.split(AGENTS_MARKER_END).length - 1, 1)
+})
+
+test('refresh is a no-op when the AGENTS.md block already matches the payload', async () => {
+  const home = tempHome()
+  await installSkill({ dshHome: home })
+  const before = readFileSync(agentsPath(home), 'utf8')
+  const r = await appendRulesToAgents(home, PAYLOAD, { refresh: true })
+  assert.equal(r.status, 'present')
+  assert.equal(readFileSync(agentsPath(home), 'utf8'), before, 'identical block must not be rewritten')
+})
+
+test('refresh refuses a start marker with no matching end marker', async () => {
+  const home = tempHome()
+  writeFileSync(agentsPath(home), `# Rules\n\n${AGENTS_MARKER_START}\n\nhalf a block\n`, 'utf8')
+  const before = readFileSync(agentsPath(home), 'utf8')
+  const r = await appendRulesToAgents(home, PAYLOAD, { refresh: true })
+  assert.equal(r.status, 'error', 'an unbalanced marker pair must not be rewritten')
+  assert.equal(readFileSync(agentsPath(home), 'utf8'), before, 'AGENTS.md must be left untouched')
+})
+
+test('refresh preserves a user block that sits between the markers of two skills', async () => {
+  const home = tempHome()
+  await installSkill({ dshHome: home })
+  const withNeighbour = readFileSync(agentsPath(home), 'utf8') + '\n# Another skill\n\nOther rules.\n'
+  writeFileSync(agentsPath(home), withNeighbour, 'utf8')
+  const r = await appendRulesToAgents(home, PAYLOAD, { refresh: true })
+  assert.equal(r.status, 'present')
+  assert.match(readFileSync(agentsPath(home), 'utf8'), /# Another skill/)
+})
