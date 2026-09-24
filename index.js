@@ -107,12 +107,18 @@ export function apply(ctx, config = {}) {
           'Curated file-based long-term memory: recall through MEMORY.md at the start ' +
           'of a task, save durable user/feedback/project/reference facts, run a curation ' +
           'checkpoint when a task finishes, and sync before compacting or opening a ' +
-          'fresh thread.',
+          'fresh thread. A turn that starts no work — a greeting, an acknowledgement — ' +
+          'is not a task and needs none of this, but never judge that by length: a ' +
+          'one-word reply continuing work underway inherits that task.',
         whenToUse:
           'Starting or resuming work, learning something durable worth a future session, ' +
           'finishing a task — including one that leaves nothing worth saving, since the ' +
           'checkpoint is still a decision to make — or approaching a ' +
-          'compact/clear/new-thread boundary.',
+          'compact/clear/new-thread boundary. Not for a bare greeting, ' +
+          'acknowledgement, or reaction, which starts no task — but a terse reply ' +
+          'that continues work underway does, and material already in hand (a ' +
+          'pasted diff to review) does not make work a non-task. Unsure? Treat it ' +
+          'as a task.',
         source: 'runtime',
         content: skill,
       }))
@@ -378,6 +384,15 @@ function builtinSkillBody() {
     '`project` notes.',
     '',
     '## Recall',
+    '',
+    'A turn or message is not by itself a task: a greeting, acknowledgement, or',
+    'reaction starts none, so it gets no recall and no checkpoint. A task is',
+    'user-directed work whose correct handling could depend on what the store holds',
+    '— read-only work (analysis, diagnosis, review) counts, and changing a file is',
+    'not required. Having the material in hand does not make work a non-task: a diff',
+    'pasted for review is still a task. Never infer this from length: a one-word',
+    'reply that picks an option or carries on work underway inherits that task.',
+    'Unsure? Treat it as a task.',
     '',
     'At the start of a task, read `MEMORY.md` and open only notes whose hooks look',
     'relevant — and only if they resolve inside `<MEMORY_ROOT>`. Pointers escaping the',

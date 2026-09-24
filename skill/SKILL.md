@@ -20,6 +20,22 @@ description: >-
 3. **统一连续性同步（压缩/清除/新线程前）：** 扫描 → 去重 → 项目 → feedback → reference → 归档 → health_check → check.py → doctor.py → 冷启动测试。
 4. **报告：** 报告 added/updated/archived/skipped、索引大小、检查结果。
 
+### 0.1 验证工具位置
+
+运行 `tools/check.py` 和 `tools/doctor.py` 前，先确认工具已安装。这些工具随 dsh 插件一起安装到 `$DSH_HOME/skills/checkpoint-memory/tools/`：
+
+```bash
+# 查找工具位置（DSH_HOME 默认为 ~/.dsh）
+find "$DSH_HOME" -path "*/skills/checkpoint-memory/tools" -type d 2>/dev/null
+
+# 或检查特定路径是否存在
+ls -la "$DSH_HOME/skills/checkpoint-memory/tools/" 2>/dev/null || \
+ls -la "~/.dsh/skills/checkpoint-memory/tools/" 2>/dev/null || \
+echo "tools not found — skill may need to be reinstalled via dsh plugin"
+```
+
+如果工具未找到，运行 `dsh plugin --profile <profile> apply checkpoint-memory` 重新安装插件。工具脚本需要 Python 3.9+。
+
 ---
 
 ## 1. 存储布局
@@ -113,6 +129,10 @@ updated: YYYY-MM-DD
 ---
 
 ## 5. 召回协议
+
+### 什么算 task
+
+一次 turn / 一条消息 / 一个会话本身不构成 task。**task** 是用户指派的、正确处理可能依赖存储内容的工作——包括只读工作（分析、诊断、规划、评审），改文件不是必要条件。问候、致谢、反应不开启 task，不该触发召回，也没有要跑的检查点——但**绝不按长度判断**：回复 "1" 回答"是这三个里的哪个？"是在任务中途，不是聊天；一个词的回复只要在继续进行中的工作，就继承那个 task。**材料已到手不豁免**：贴来评审的 diff 仍是 task。仍不确定时，当成 task。
 
 1. 读取 `MEMORY.md`，扫描描述，只打开与手头任务相关的详情文件。
 2. **只打开解析到 `<MEMORY_ROOT>` 内部的指针。** 任何离开根目录的指针（符号链接、`..`、绝对路径、`file://`）视为断裂指针，**永远不打开**。
